@@ -1,0 +1,46 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+
+APP=bse_agent
+RUN_DIR=/var/run/${APP}
+TARGET_DIR=/usr/local/bin
+APP_PID_FILE=${RUN_DIR}/${APP}.pid
+
+print ()
+{
+    /usr/bin/logger	-t "${APP}" -p "info" "$@" > /dev/null 2>&1
+}
+
+start() 
+{
+    PID_LIST=$(pidof ${APP})
+    if ! echo "${PID_LIST}" | sed "s/$$//" | grep -q [0-9]
+    then
+        [ -e ${RUN_DIR} ] || mkdir -p ${RUN_DIR} > /dev/null 2>&1
+
+        ${TARGET_DIR}/${APP} -c /etc/config/${APP} &
+        echo $! > ${APP_PID_FILE}
+
+        print "Started"
+    fi
+}
+
+stop() 
+{
+    if [ -e ${APP_PID_FILE} ]
+    then
+        kill -9 $(cat ${APP_PID_FILE})> /dev/null 2>&1
+        rm -f ${APP_PID_FILE} > /dev/null 2>&1
+    fi
+
+    PID_LIST=$(pidof ${APP})
+    for pid in ${PID_LIST}
+    do
+        [ ${pid} -ne  $$ ] && kill -9 ${pid} > /dev/null 2>&1
+    done
+
+    sleep 1
+
+    print "Stopped"
+}
